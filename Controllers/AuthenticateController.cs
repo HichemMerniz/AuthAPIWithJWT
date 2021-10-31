@@ -1,4 +1,5 @@
-﻿using ApiTesting.IdentityAuth;
+﻿using ApiTesting.Configuration;
+using ApiTesting.IdentityAuth;
 using ApiTesting.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -7,7 +8,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -23,12 +23,14 @@ namespace ApiTesting.Controllers
         private readonly UserManager<ApplicationUser> userManager;
         private readonly RoleManager<IdentityRole> roleManager;
         private readonly IConfiguration _configuration;
+        
 
         public AuthenticateController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, IConfiguration configuration)
         {
             this.userManager = userManager;
             this.roleManager = roleManager;
             _configuration = configuration;
+           
         }
 
 
@@ -66,7 +68,7 @@ namespace ApiTesting.Controllers
                 UserName = model.Username
             };
             var result = await userManager.CreateAsync(user, model.Password);
-           
+
             if (!result.Succeeded)
                 return StatusCode(StatusCodes.Status500InternalServerError, new Response { Status = "Error", Message = "User creation failed! Please check user details and try again" });
             if (!await roleManager.RoleExistsAsync(UserRoles.Admin))
@@ -82,7 +84,7 @@ namespace ApiTesting.Controllers
 
 
         [HttpPost]
-        [Route("login")]
+        [Route("Login")]
         public async Task<IActionResult> Login([FromBody] LoginModel model)
         {
             var user = await userManager.FindByNameAsync(model.Username);
@@ -90,15 +92,15 @@ namespace ApiTesting.Controllers
             {
                 var userRoles = await userManager.GetRolesAsync(user);
                 var authClaims = new List<Claim>
-{
-new Claim(ClaimTypes.Name, user.UserName),
-new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-};
+                {
+                    new Claim(ClaimTypes.Name, user.UserName),
+                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                };
                 foreach (var userRole in userRoles)
                 {
                     authClaims.Add(new Claim(ClaimTypes.Role, userRole));
                 }
-                var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWT: SecretKey"]));
+                var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JwtConfig:Secret"]));
                 var token = new JwtSecurityToken(
                 issuer: _configuration["JWT: ValidIssuer"],
                 audience: _configuration["JWT: ValidAudience"],
@@ -114,5 +116,6 @@ new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             }
             return Unauthorized();
         }
+       
     }
 }

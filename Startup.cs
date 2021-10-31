@@ -1,3 +1,4 @@
+using ApiTesting.Configuration;
 using ApiTesting.DbContext;
 using ApiTesting.IdentityAuth;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -16,6 +17,7 @@ namespace ApiTesting
 {
     public class Startup
     {
+
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
@@ -26,6 +28,7 @@ namespace ApiTesting
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.Configure<JwtConfig>(Configuration.GetSection("JwtConfig"));
 
             services.AddControllers();
             services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection")));
@@ -72,15 +75,17 @@ namespace ApiTesting
             // Adding Jwt Bearer
             .AddJwtBearer(options =>
             {
+                var key = Encoding.UTF8.GetBytes(Configuration["JwtConfig:Secret"]);
                 options.SaveToken = true;
                 options.RequireHttpsMetadata = false;
                 options.TokenValidationParameters = new TokenValidationParameters()
                 {
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidAudience = Configuration["JWT: ValidAudience"],
-                    ValidIssuer = Configuration["JWT: ValidIssuer"],
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Configuration["JWT: SecretKey"]))
+                    ValidateIssuerSigningKey= true,
+                    ValidateIssuer = false,
+                    ValidateAudience = false,
+                    ValidateLifetime = true,
+                    RequireExpirationTime = false,
+                    IssuerSigningKey = new SymmetricSecurityKey(key)
                 };
             });
         }
@@ -99,7 +104,9 @@ namespace ApiTesting
 
             app.UseRouting();
 
+            app.UseAuthentication();
             app.UseAuthorization();
+
 
             app.UseEndpoints(endpoints =>
             {
